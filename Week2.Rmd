@@ -6,13 +6,16 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE,comment="",cache=TRUE)
+knitr::opts_chunk$set(echo = TRUE,comment="",cache=TRUE,warning = FALSE)
 library(tm)
+library(ggplot2)
 
-sampleReader<-function(x,y){
-      con<-file(x,"r")
+sampleReader<-function(x,y=-1L,z="en_US"){
+      filename<-paste("../Data/final/",z,"/",z,".",x,".txt",sep="")
+      con<-file(filename,"rb")
       inputtext<-readLines(con,n=y)
       close(con)
+      inputtext<-inputtext[!is.na(inputtext)]
       inputtext
 }
 
@@ -27,11 +30,61 @@ cleanToken<-function(x){
 
 # Task 2 - Exploratory Data Analysis
 
-## Exploratory Analysis
+## Exploratory Analysis and Word Frequencies
 
-Based on tokenization, we can explore the words in the corpus.
+Based on tokenization, we can explore the words in the corpus. A possible function would be to create a clean tokenized list of vectors, unlist the contents, and return a frequency table as a data frame.
 
 ```{R}
 
+getTokens<-function(x){
+      words<-cleanToken(x)
+      wordslist<-unlist(words)
+      as.data.frame(table(wordslist))
+}
+
+sample1<-sampleReader("blogs",5)
+sample1[4]
+tokens1<-getTokens(sample1)
+head(tokens1)
 
 ```
+
+In each data set, a random sample of 200 lines has the following frequency distribution:
+
+```{R}
+set.seed=322021
+twitter<-sampleReader("twitter")
+sampleTwitter<-sample(twitter,size=200,replace=F)
+rm(twitter)
+blog<-sampleReader("blogs")
+sampleBlog<-sample(blog,size=200,replace=F)
+rm(blog)
+news<-sampleReader("news")
+sampleNews<-sample(news,size=200,replace=F)
+rm(news)
+twitterToken<-getTokens(sampleTwitter)
+blogToken<-getTokens(sampleBlog)
+newsToken<-getTokens(sampleNews)
+hist(log(twitterToken$Freq),main="Twitter Frequency Distribution",xlab="Frequencies",
+     ylab="Distribution",breaks=20)
+hist(log(subset(blogToken,Freq>2)$Freq),main="Twitter Frequency Distributions greater than 2",
+     xlab="Frequencies",ylab="Distribution",breaks=20)
+
+```
+
+
+The words with the highest counts in each of the 3 English corpora are:
+
+```{R}
+# BLOGS:
+maxBlog<-subset(blogToken,Freq %in% head(sort(blogToken$Freq,decreasing=TRUE),10))
+maxBlog[order(maxBlog$Freq,decreasing=TRUE),]
+# NEWS:
+maxNews<-subset(newsToken,Freq %in% head(sort(newsToken$Freq,decreasing=TRUE),10))
+maxNews[order(maxNews$Freq,decreasing=TRUE),]
+# TWITTER:
+maxTwitter<-subset(twitterToken,Freq %in% head(sort(twitterToken$Freq,decreasing=TRUE),10))
+maxTwitter[order(maxTwitter$Freq,decreasing=TRUE),]
+
+```
+## N-Gram Frequency
