@@ -1,0 +1,105 @@
+---
+title: "Week 1"
+author: "C. Kalinowski"
+date: "3/1/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,comment="",cache=TRUE)
+```
+
+# Task 0 - Understanding the Problem
+
+## Download the data
+
+The data was downloaded and unzipped. It contains a folder named "final" with 4 subfolders.
+
+- German (de_DE)
+- English (en_EN)
+- Finnish (fi_FI)
+- Russian (ru_RU)
+
+Each folder contains 3 files beginning with the folder name and ending with the source name.
+
+- blogs (.blogs.txt)
+- news (.news.txt)
+- twitter (.twitter.txt)
+
+The path to Russian blogs is "../Data/final/ru_RU/ru_RU.blogs.txt"
+
+## Load the data into R
+
+readLines outputs a character vector of length y, and you can access specific elements with the square brackets.
+
+fileReader is a basic first pass at a function that takes a file name x and a length y. It opens a connection to file x for read purposes, inputs y lines. It then closes the connection and returns a character vector of length y. 
+
+```{R}
+
+sampleReader<-function(x,y){
+      con<-file(x,"r")
+      inputtext<-readLines(con,n=y)
+      close(con)
+      inputtext
+}
+
+myline<-sampleReader("../Data/final/en_US/en_US.twitter.txt",2)
+myline
+
+```
+
+\pagebreak
+
+# Task 1 - Getting and Cleaning the Data
+
+## Tokenization
+
+Tokenization is splitting lines into words. A simple tokenizer, according to Jurafsky's lectures, splits on non-alpha characters.
+
+A basic tokenizer is found in the tau package. It simply splits based on whitespace.
+
+```{R}
+
+library(tau)
+head(tokenize(myline))
+
+```
+
+A better option is probably the boost tokenizer in tm, which keeps punctuation...
+
+```{R}
+
+library(tm)
+head(Boost_tokenizer(myline))
+
+```
+
+
+...or the MC tokenizer, which doesn't.
+
+```{R}
+
+head(MC_tokenizer(myline))
+
+```
+
+## Profanity Removal
+
+Probably the best way to deal with this is to use an already-generated list of words like the google bad words list. There is a 2010 list available at "https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/badwordslist/badwords.txt", which was downloaded and stored as "../Data/badwords.txt"
+
+The following "clean" tokenizer takes a character vector as input. It tokenizes it using the MC tokenizer, and then compares it against the bad words list. Anything in the tokenized vector that is on the list is replaced with the string "PRFNTY", and the "cleaned" vector is returned as output.
+
+```{R}
+
+cleanToken<-function(x){
+      token<-MC_tokenizer(x)
+      badWordsList<-readLines("../Data/badwords.txt",n=-1L,warn=FALSE)
+      checkToken<-token %in% badWordsList
+      token[checkToken]<-"PRFNTY"
+      token
+}
+
+myclean1<-cleanToken(myline[1])
+myclean1
+
+```
