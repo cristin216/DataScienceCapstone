@@ -16,7 +16,7 @@ knitr::opts_chunk$set(echo = TRUE,comment="",cache=TRUE)
 The data was downloaded and unzipped. It contains a folder named "final" with 4 subfolders.
 
 - German (de_DE)
-- English (en_EN)
+- English (en_US)
 - Finnish (fi_FI)
 - Russian (ru_RU)
 
@@ -36,14 +36,15 @@ fileReader is a basic first pass at a function that takes a file name x and a le
 
 ```{R}
 
-sampleReader<-function(x,y){
-      con<-file(x,"r")
+sampleReader<-function(x,y,z="en_US"){
+      filename<-paste("../Data/final/",z,"/",z,".",x,".txt",sep="")
+      con<-file(filename,"r")
       inputtext<-readLines(con,n=y)
       close(con)
       inputtext
 }
 
-myline<-sampleReader("../Data/final/en_US/en_US.twitter.txt",2)
+myline<-sampleReader("twitter",2)
 myline
 
 ```
