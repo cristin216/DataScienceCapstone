@@ -24,6 +24,7 @@ cleanToken<-function(x){
       badWordsList<-readLines("../Data/badwords.txt",n=-1L,warn=FALSE)
       checkToken<-token %in% badWordsList
       token[checkToken]<-"PRFNTY"
+      token<-gsub("[Hh][Tt][Tt][Pp][Ss]?:[^ ]+","WBDDRSS",token)
       token
 }
 ```
@@ -93,7 +94,7 @@ An easy way to create N-grams is to paste together token vectors.
 
 ```{R}
 
-ngrammer<-function(x,y){
+ngrammer<-function(x,y,table=FALSE){
    ngramMatrix<-NULL
    size<-length(x)
    if(size<=y){
@@ -113,10 +114,52 @@ head(ngrammer(cleanToken(sample1[4]),4),10)
 
 ```
 
-\pagebreak
-
+\pagebreak   
+*********************************** Turn ngram list into frequency table **************
 # Task3 - Modeling
 
+The first task for modeling is creating ngram frequencies from the test sets and assigning them probabilities. Each of the 3 English corpora were split 60-20-20 into training, validation, and test sets.
+
+
+```{R,include=FALSE}
+set.seed(3022021)
+twitter<-sampleReader("twitter")
+twittertest<-sample(1:length(twitter),size=length(twitter)*0.2,replace=FALSE)
+testTwitter<-twitter[twittertest]
+
+twittertrain<-twitter[-twittertest]
+twittervalid<-sample(1:length(twittertrain),size=length(twittertrain)*0.25,replace=FALSE)
+validTwitter<-twittertrain[twittervalid]
+trainTwitter<-twittertrain[-twittervalid]
+
+rm(twitter,twittertest,twittertrain,twittervalid)
+
+blogs<-sampleReader("blogs")
+blogstest<-sample(1:length(blogs),size=length(blogs)*0.2,replace=FALSE)
+testBlogs<-blogs[blogstest]
+
+blogstrain<-blogs[-blogstest]
+blogsvalid<-sample(1:length(blogstrain),size=length(blogstrain)*0.25,replace=FALSE)
+validBlogs<-blogstrain[blogsvalid]
+trainBlogs<-blogstrain[-blogsvalid]
+
+rm(blogs,blogstest,blogstrain,blogsvalid)
+
+news<-sampleReader("news")
+newstest<-sample(1:length(news),size=length(news)*0.2,replace=FALSE)
+testNews<-news[newstest]
+
+newstrain<-news[-newstest]
+newsvalid<-sample(1:length(newstrain),size=length(newstrain)*0.25,replace=FALSE)
+validNews<-newstrain[newsvalid]
+trainNews<-newstrain[-newsvalid]
+
+rm(news,newstest,newstrain,newsvalid)
+
+```
+
 ```{R}
+
+twitter4gram<-ngrammer(cleanToken(trainTwitter),y=4)
 
 ```
