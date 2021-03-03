@@ -88,3 +88,26 @@ maxTwitter[order(maxTwitter$Freq,decreasing=TRUE),]
 
 ```
 ## N-Gram Frequency
+
+An easy way to create N-grams is to paste together token vectors.
+
+```{R}
+
+ngrammer<-function(x,y){
+   ngramMatrix<-NULL
+   size<-length(x)
+   ngramMatrix<-matrix(nrow=(size-y+1),ncol=0)
+   for (i in (1:y)){
+      tokenlist<-x[i:(size-y+i)]
+      ngramMatrix<-cbind(ngramMatrix,tokenlist)
+   }
+   df_args <- c(as.data.frame(ngramMatrix), sep=" ")
+   do.call(paste, df_args)
+}
+
+sample1[4]
+head(ngrammer(cleanToken(sample1[4]),4),10)
+```
+
+
+# Task3 - Modeling
