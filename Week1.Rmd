@@ -37,6 +37,12 @@ fileReader is a basic first pass at a function that takes a file name x and a le
 ```{R}
 
 sampleReader<-function(x,y=-1L,z="en_US"){
+      ## Reads a specified number of lines from an input text from the data set
+      ## First paste together file name from input x (either twitter, blogs, or news)
+      ## Assume language is english, but can be switched to de, ru, or fi with z arg
+      ## Open file connection, input y lines, or all if not specified
+      ## close connection, return input lines as character vector of length y
+   
       filename<-paste("../Data/final/",z,"/",z,".",x,".txt",sep="")
       con<-file(filename,"r")
       inputtext<-readLines(con,n=y)
@@ -93,6 +99,12 @@ The following "clean" tokenizer takes a character vector as input. It tokenizes 
 ```{R}
 
 cleanToken<-function(x){
+      ## creates "clean" set of tokens from input x
+      ## uses MC_tokenizer to create token list
+      ## checks token list against badwords list
+      ## replace tokens on the bad list with "PRFNTY"
+      ## return token list
+   
       token<-MC_tokenizer(x)
       badWordsList<-readLines("../Data/badwords.txt",n=-1L,warn=FALSE)
       checkToken<-token %in% badWordsList
