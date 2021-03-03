@@ -96,6 +96,9 @@ An easy way to create N-grams is to paste together token vectors.
 ngrammer<-function(x,y){
    ngramMatrix<-NULL
    size<-length(x)
+   if(size<=y){
+      return()
+   }
    ngramMatrix<-matrix(nrow=(size-y+1),ncol=0)
    for (i in (1:y)){
       tokenlist<-x[i:(size-y+i)]
@@ -107,7 +110,13 @@ ngrammer<-function(x,y){
 
 sample1[4]
 head(ngrammer(cleanToken(sample1[4]),4),10)
+
 ```
 
+\pagebreak
 
 # Task3 - Modeling
+
+```{R}
+
+```
