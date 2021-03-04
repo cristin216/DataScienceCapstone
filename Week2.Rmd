@@ -7,26 +7,45 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE,comment="",cache=TRUE,warning = FALSE)
+
 library(tm)
 library(ggplot2)
 
 sampleReader<-function(x,y=-1L,z="en_US"){
-      filename<-paste("../Data/final/",z,"/",z,".",x,".txt",sep="")
-      con<-file(filename,"rb")
-      inputtext<-readLines(con,n=y)
-      close(con)
-      inputtext<-inputtext[!is.na(inputtext)]
-      inputtext
+      ## Reads a specified number of lines from an input text from the data set
+      ## First paste together file name from input x (either twitter, blogs, or news)
+      ## Assume language is english, but can be switched to de, ru, or fi with z arg
+      ## Open file connection, input y lines, or all if not specified
+      ## close connection, return input lines as character vector of length y
+
+   filename<-paste("../Data/final/",z,"/",z,".",x,".txt",sep="")
+   con<-file(filename,"r")
+   inputtext<-readLines(con,n=y)
+   close(con)
+   inputtext
 }
 
 cleanToken<-function(x){
-      token<-MC_tokenizer(x)
-      badWordsList<-readLines("../Data/badwords.txt",n=-1L,warn=FALSE)
-      checkToken<-token %in% badWordsList
-      token[checkToken]<-"PRFNTY"
-      token<-gsub("[Hh][Tt][Tt][Pp][Ss]?:[^ ]+","WBDDRSS",token)
-      token
+      ## creates "clean" set of tokens from input x
+      ## use MC_tokenizer to create token list
+      ## convert to all lowercase
+      ## check token list against badwords list
+      ## replace tokens on the bad list with "PRFNTY"
+      ## remove all punctuation marks
+      ## replace http(s) website addresses with WBDDRSS
+      ## return token list
+
+   token<-MC_tokenizer(x)
+   badWordsList<-readLines("../Data/badwords.txt",n=-1L,warn=FALSE)
+   token<-tolower(token)
+   checkToken<-token %in% badWordsList
+   token[checkToken]<-"PRFNTY"
+   token<-gsub("[^A-Za-z0-9]+$","",token)
+   token<-gsub("^[^A-Za-z0-9]*$","",token)
+   token<-gsub("[Hh][Tt][Tt][Pp][^ ]+","WBDDRSS",token)
+   token
 }
+
 ```
 
 # Task 2 - Exploratory Data Analysis
@@ -37,15 +56,21 @@ Based on tokenization, we can explore the words in the corpus. A possible functi
 
 ```{R}
 
-getTokens<-function(x){
-      words<-cleanToken(x)
-      wordslist<-unlist(words)
-      as.data.frame(table(wordslist))
+tokenFreq<-function(x){
+      ## creates frequency table data frame of tokens from input text line x
+      ## runs input x through cleanToken to get token list
+      ## unlists token list to get single list
+      ## creates table count of single list
+      ## returns table as data frame
+
+   words<-cleanToken(x)
+   wordslist<-unlist(words)
+   as.data.frame(table(wordslist))
 }
 
 sample1<-sampleReader("blogs",5)
 sample1[4]
-tokens1<-getTokens(sample1)
+tokens1<-tokenFreq(sample1)
 head(tokens1)
 
 ```
@@ -63,9 +88,9 @@ rm(blog)
 news<-sampleReader("news")
 sampleNews<-sample(news,size=200,replace=F)
 rm(news)
-twitterToken<-getTokens(sampleTwitter)
-blogToken<-getTokens(sampleBlog)
-newsToken<-getTokens(sampleNews)
+twitterToken<-tokenFreq(sampleTwitter)
+blogToken<-tokenFreq(sampleBlog)
+newsToken<-tokenFreq(sampleNews)
 hist(log(twitterToken$Freq),main="Twitter Frequency Distribution",xlab="Frequencies",
      ylab="Distribution",breaks=20)
 hist(log(subset(blogToken,Freq>2)$Freq),main="Twitter Frequency Distributions greater than 2",
@@ -94,29 +119,39 @@ An easy way to create N-grams is to paste together token vectors.
 
 ```{R}
 
-ngrammer<-function(x,y,table=FALSE){
+ngrammer<-function(x,y){
+      ## Creates list of y-grams from input tokenized list x
+      ## Checks whether y is greater than length of x, else returns NULL
+      ## Creates y vectors with stepped start and end points
+      ## Vector 1 starts at 1 and ends at length of x - y
+      ## Vector y starts at y and ends at end of x
+      ## Binds vectors into data frame
+      ## Pastes rows of data frame with space separator
+      ## Returns list of pasted rows
+
    ngramMatrix<-NULL
    size<-length(x)
    if(size<=y){
       return()
    }
+
    ngramMatrix<-matrix(nrow=(size-y+1),ncol=0)
    for (i in (1:y)){
       tokenlist<-x[i:(size-y+i)]
       ngramMatrix<-cbind(ngramMatrix,tokenlist)
    }
+   
    df_args <- c(as.data.frame(ngramMatrix), sep=" ")
    do.call(paste, df_args)
 }
+
 
 sample1[4]
 head(ngrammer(cleanToken(sample1[4]),4),10)
 
 ```
 
-\pagebreak   
-*********************************** Turn ngram list into frequency table **************
-# Task3 - Modeling
+# Task 3 - Modeling
 
 The first task for modeling is creating ngram frequencies from the test sets and assigning them probabilities. Each of the 3 English corpora were split 60-20-20 into training, validation, and test sets.
 
@@ -160,6 +195,79 @@ rm(news,newstest,newstrain,newsvalid)
 
 ```{R}
 
-twitter4gram<-ngrammer(cleanToken(trainTwitter),y=4)
+ngramtable<-function(x,y,z=TRUE){
+      ## Creates ngram frequency table of n-1 as rows and last word as column
+      ## x is tokenized list, y is ngram number
+      ## If y>2, send x to ngrammer function with y-1 for row generator
+      ## If y=2, create vector using x from 1 to end-1 as first word generator
+      ## Create vector using x from y to end as last word generator
+      ## Create data frame with ngrammer or first word as first column 
+      ## and last word as second column
+      ## If z, create and return frequency table of ngrammer by last word
+      ## If not z, return data frame
+   
+   if(y>2){
+      a<-ngrammer(x,(y-1))
+   }
+   else{
+      a<-x[1:(length(x)-1)]
+   }
+   b<-x[y:(length(x))]
+   df<-cbind(a[1:length(b)],b)
+   if(z){
+   table(df[,1],df[,2])
+   }
+   else{df}
+}
+
+
 
 ```
+
+
+For multi-line corpora, using lapply gets the correct output
+
+```{R}
+token<-lapply(trainTwitter[1:2],cleanToken)
+
+grams<-lapply(token,ngrammer,y=4)
+
+gramDF<-lapply(token[1:2],ngramtable,y=4,z=FALSE)
+
+gramList<-do.call("rbind",gramDF)
+
+gramsFreqSmooth<-table(gramList[,1],gramList[,2])+1
+
+gramsFreqSmooth[1:6,1:6]
+```
+
+# Frequencies
+## Unigrams
+
+```{R,eval=FALSE}
+# Clean and tokenize the twitter data
+twitterClean<-lapply(trainTwitter,cleanToken)
+# unlist the token list to create a single list
+twitter1gramList<-unlist(twitterClean)
+# create a frequency table
+twitter1gramFreq<-table(twitter1gramList)
+# create a probability table
+twitter1gramProb<-round((twitter1gramFreq/length(twitter1gramList)*100),6)
+```
+
+## Bigrams
+
+```{R,eval=FALSE}
+library(dplyr)
+# create 2gram dfs
+twitter2grams<-lapply(twitterClean,ngramtable,y=2,z=FALSE)
+# combine 2gram dfs
+twitter2gramList<-do.call("rbind",twitter2grams)
+twitter2gramList<-as.data.frame(twitter2gramList)
+# create a frequency chart
+twitter2gramFreq<-table(twitter2gramList[,1],twitter2gramList[,2])
+
+```
+
+*******************normalize frequencies by unigrams***********
+frequency of "a b" / frequency of a
