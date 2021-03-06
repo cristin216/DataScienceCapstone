@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE,comment="",cache=TRUE,warning = FALSE)
 
 library(tm)
 library(ggplot2)
+library(data.table)
 
 sampleReader<-function(x,y=-1L,z="en_US"){
       ## Reads a specified number of lines from an input text from the data set
@@ -52,20 +53,22 @@ cleanToken<-function(x){
 
 ## Exploratory Analysis and Word Frequencies
 
-Based on tokenization, we can explore the words in the corpus. A possible function would be to create a clean tokenized list of vectors, unlist the contents, and return a frequency table as a data frame.
+Based on tokenization, we can explore the words in the corpus. A possible function would be to create a clean tokenized list of vectors, unlist the contents, and return a frequency table as a data table.
 
 ```{R}
 
 tokenFreq<-function(x){
-      ## creates frequency table data frame of tokens from input text line x
+      ## creates data table of tokens from input text line x
       ## runs input x through cleanToken to get token list
       ## unlists token list to get single list
-      ## creates table count of single list
-      ## returns table as data frame
+      ## creates data.table and calculates frequencies
+      ## returns data.table
 
    words<-cleanToken(x)
-   wordslist<-unlist(words)
-   as.data.frame(table(wordslist))
+   wordslist<-as.data.table(unlist(words))
+   wordslist<-wordslist[,.(.N),keyby=wordslist]
+   colnames(wordslist)<-c("token","freq")
+   wordslist
 }
 
 sample1<-sampleReader("blogs",5)
@@ -91,10 +94,10 @@ rm(news)
 twitterToken<-tokenFreq(sampleTwitter)
 blogToken<-tokenFreq(sampleBlog)
 newsToken<-tokenFreq(sampleNews)
-hist(log(twitterToken$Freq),main="Twitter Frequency Distribution",xlab="Frequencies",
-     ylab="Distribution",breaks=20)
-hist(log(subset(blogToken,Freq>2)$Freq),main="Twitter Frequency Distributions greater than 2",
-     xlab="Frequencies",ylab="Distribution",breaks=20)
+hist(log(twitterToken$freq),main="Twitter Frequency Distribution",xlab="Frequencies",
+   ylab="Distribution",breaks=20)
+hist(log(subset(twitterToken,freq>2)$freq),main="Twitter Frequency Distributions greater than 2",
+   xlab="Frequencies",ylab="Distribution",breaks=20)
 
 ```
 
@@ -103,14 +106,11 @@ The words with the highest counts in each of the 3 English corpora are:
 
 ```{R}
 # BLOGS:
-maxBlog<-subset(blogToken,Freq %in% head(sort(blogToken$Freq,decreasing=TRUE),10))
-maxBlog[order(maxBlog$Freq,decreasing=TRUE),]
+head(blogToken[order(-freq)])
 # NEWS:
-maxNews<-subset(newsToken,Freq %in% head(sort(newsToken$Freq,decreasing=TRUE),10))
-maxNews[order(maxNews$Freq,decreasing=TRUE),]
+head(newsToken[order(-freq)])
 # TWITTER:
-maxTwitter<-subset(twitterToken,Freq %in% head(sort(twitterToken$Freq,decreasing=TRUE),10))
-maxTwitter[order(maxTwitter$Freq,decreasing=TRUE),]
+head(twitterToken[order(-freq)])
 
 ```
 ## N-Gram Frequency
@@ -141,8 +141,8 @@ ngrammer<-function(x,y){
       ngramMatrix<-cbind(ngramMatrix,tokenlist)
    }
    
-   df_args <- c(as.data.frame(ngramMatrix), sep=" ")
-   do.call(paste, df_args)
+   df_args <- c(as.data.table(ngramMatrix), sep=" ")
+   df_args<-as.data.table(do.call(paste, df_args))
 }
 
 
@@ -195,7 +195,7 @@ rm(news,newstest,newstrain,newsvalid)
 
 ```{R}
 
-ngramtable<-function(x,y,z=TRUE){
+ngramtable<-function(x,y){
       ## Creates ngram frequency table of n-1 as rows and last word as column
       ## x is tokenized list, y is ngram number
       ## If y>2, send x to ngrammer function with y-1 for row generator
@@ -204,23 +204,24 @@ ngramtable<-function(x,y,z=TRUE){
       ## Create data frame with ngrammer or first word as first column 
       ## and last word as second column
       ## If z, create and return frequency table of ngrammer by last word
-      ## If not z, return data frame
+      ## If not z, return data table
    
    if(y>2){
-      a<-ngrammer(x,(y-1))
+      ngrams<-ngrammer(x,(y-1))
    }
    else{
-      a<-x[1:(length(x)-1)]
+      ngrams<-x[1:(length(x)-1)]
    }
-   b<-x[y:(length(x))]
-   df<-cbind(a[1:length(b)],b)
-   if(z){
-   table(df[,1],df[,2])
-   }
-   else{df}
+   singles<-x[y:(length(x))]
+   ngramtable<-data.table(ngrams[1:length(singles)],
+                  single = singles)
+   
+   ngramtable<-ngramtable[,.(freq=.N),keyby = .(phrase=V1,single)]
+   ngramtable
 }
 
-
+sampletable<-ngramtable(cleanToken(sample1[4]),4)
+head(sampletable[order(-freq)])
 
 ```
 
@@ -228,17 +229,13 @@ ngramtable<-function(x,y,z=TRUE){
 For multi-line corpora, using lapply gets the correct output
 
 ```{R}
+trainTwitter[1:2]
 token<-lapply(trainTwitter[1:2],cleanToken)
-
 grams<-lapply(token,ngrammer,y=4)
+gramDT<-lapply(token[1:2],ngramtable,y=4)
+gramList<-do.call("rbind",gramDT)
+gramList
 
-gramDF<-lapply(token[1:2],ngramtable,y=4,z=FALSE)
-
-gramList<-do.call("rbind",gramDF)
-
-gramsFreqSmooth<-table(gramList[,1],gramList[,2])+1
-
-gramsFreqSmooth[1:6,1:6]
 ```
 
 # Frequencies
