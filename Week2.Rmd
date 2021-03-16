@@ -127,7 +127,7 @@ ngrammer<-function(x,y){
       ## Vector y starts at y and ends at end of x
       ## Binds vectors into data frame
       ## Pastes rows of data frame with space separator
-      ## Returns list of pasted rows
+      ## Returns data table of pasted rows
 
    ngramMatrix<-NULL
    size<-length(x)
@@ -140,11 +140,11 @@ ngrammer<-function(x,y){
       tokenlist<-x[i:(size-y+i)]
       ngramMatrix<-cbind(ngramMatrix,tokenlist)
    }
-   
+
    df_args <- c(as.data.table(ngramMatrix), sep=" ")
    df_args<-as.data.table(do.call(paste, df_args))
+   df_args
 }
-
 
 sample1[4]
 head(ngrammer(cleanToken(sample1[4]),4),10)
@@ -201,11 +201,11 @@ ngramtable<-function(x,y){
       ## If y>2, send x to ngrammer function with y-1 for row generator
       ## If y=2, create vector using x from 1 to end-1 as first word generator
       ## Create vector using x from y to end as last word generator
-      ## Create data frame with ngrammer or first word as first column 
+      ## Create data frame with ngrammer or first word as first column
       ## and last word as second column
       ## If z, create and return frequency table of ngrammer by last word
       ## If not z, return data table
-   
+
    if(y>2){
       ngrams<-ngrammer(x,(y-1))
    }
@@ -214,8 +214,8 @@ ngramtable<-function(x,y){
    }
    singles<-x[y:(length(x))]
    ngramtable<-data.table(ngrams[1:length(singles)],
-                  single = singles)
-   
+      single = singles)
+
    ngramtable<-ngramtable[,.(freq=.N),keyby = .(phrase=V1,single)]
    ngramtable
 }
@@ -268,3 +268,11 @@ twitter2gramFreq<-table(twitter2gramList[,1],twitter2gramList[,2])
 
 *******************normalize frequencies by unigrams***********
 frequency of "a b" / frequency of a
+
+
+
+
+New possibility with tm package:
+
+twitter<-simpleCorpus("../Data/final/en_US/en_US.twitter.txt")
+remove punctuation with removePunctuation(twitter)
