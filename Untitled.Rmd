@@ -1,0 +1,339 @@
+---
+title: "Capstone Project Milestone Report"
+author: "C. Kalinowski"
+date: "3/16/2021"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,cache=TRUE,warning=FALSE,comment="")
+library(quanteda)
+library(data.table)
+```
+
+```{R}
+sampleReader<-function(x,y=-1L,z="en_US"){
+    ## Reads a specified number of lines from an input text from the data set
+    ## First paste together file name from input x (either twitter, blogs, or news)
+    ## Assume language is english, but can be switched to de, ru, or fi with z arg
+    ## Open file connection, input y lines, or all if not specified
+    ## close connection, return input lines as character vector of length y
+
+  filename<-paste("../Data/final/",z,"/",z,".",x,".txt",sep="")
+  con<-file(filename,"r")
+  inputtext<-readLines(con,n=y)
+  close(con)
+  inputtext
+}
+```
+
+```{R}
+splitSets<-function(x){
+    ## Splits a text document into training (60%), validation (20%), and test (20%) sections.
+    ## Sets seed and reads in y lines of new text x with sampleReader
+    ## Split into test/non-test sections based on length
+    ## Split into train/validation sections
+  set.seed(3022021)
+  newText<-sampleReader(x)
+  textLength<-length(newText)
+  split1<-sample(1:textLength,size=textLength*0.2,replace=FALSE)
+  testSet<-newText[split1]
+  write(testSet,"testCorpus.txt",append=TRUE)
+  toSplit<-newText[-split1]
+  splitLength<-length(toSplit)
+  split2<-sample(1:splitLength,size=splitLength*0.25,replace=FALSE)
+  validSet<-toSplit[split2]
+  write(validSet,"validCorpus.txt",append=TRUE)
+  trainSet<-toSplit[-split2]
+  return(trainSet)
+}
+```
+
+```{R}
+twitterAll<-sampleReader("twitter")
+twitterAllLength<-length(twitterAll)
+twitterAllCorpus<-corpus(twitterAll)
+rm(twitterAll)
+twitterAllCorpus<-gsub("[^A-Za-z0-9#' -]","",twitterAllCorpus)
+twitterAllTokens<-tokens(twitterAllCorpus,remove_punct = TRUE,remove_symbols=TRUE,remove_url=TRUE)
+rm(twitterAllCorpus)
+twitterAllTable<-as.data.table(unlist(as.list(twitterAllTokens)))
+twitterAllTokenCount<-nrow(twitterAllTable)
+twitterAllFreqTable<-twitterAllTable[,.(frequency=.N),keyby=V1]
+twitterAllHighFreqTokens<-head(twitterAllFreqTable[order(-frequency)],25)
+rm(twitterAllTokens,twitterAllFreqTable)
+```
+
+```{R}
+blogsAll<-sampleReader("blogs")
+blogsAllLength<-length(blogsAll)
+blogsAllCorpus<-corpus(blogsAll)
+rm(blogsAll)
+blogsAllCorpus<-gsub("[^A-Za-z0-9#' -]","",blogsAllCorpus)
+blogsAllTokens<-tokens(blogsAllCorpus,remove_punct = TRUE,remove_symbols=TRUE,remove_url=TRUE)
+rm(blogsAllCorpus)
+blogsAllTable<-as.data.table(unlist(as.list(blogsAllTokens)))
+blogsAllTokenCount<-nrow(blogsAllTable)
+blogsAllFreqTable<-blogsAllTable[,.(frequency=.N),keyby=V1]
+blogsAllHighFreqTokens<-head(blogsAllFreqTable[order(-frequency)],25)
+rm(blogsAllTokens,blogsAllFreqTable)
+```
+
+```{R}
+newsAll<-sampleReader("news")
+newsAllLength<-length(newsAll)
+newsAllCorpus<-corpus(newsAll)
+rm(newsAll)
+newsAllCorpus<-gsub("[^A-Za-z0-9#' -]","",newsAllCorpus)
+newsAllTokens<-tokens(newsAllCorpus,remove_punct = TRUE,remove_symbols=TRUE,remove_url=TRUE)
+rm(newsAllCorpus)
+newsAllTable<-as.data.table(unlist(as.list(newsAllTokens)))
+newsAllTokenCount<-nrow(newsAllTable)
+newsAllFreqTable<-newsAllTable[,.(frequency=.N),keyby=V1]
+newsAllHighFreqTokens<-head(newsAllFreqTable[order(-frequency)],25)
+rm(newsAllTokens,newsAllFreqTable)
+```
+
+```{R}
+if(!file.exists("testCorpus.txt")){blogs<-splitSets("blogs")}
+```
+
+```{R}
+if(!file.exists("testCorpus.txt")){news<-splitSets("news")}
+```
+
+```{R}
+if(!file.exists("testCorpus.txt")){twitter<-splitSets("twitter")}
+```
+
+```{R}
+if(exists("twitter")){
+  myCorpus<-corpus(c(twitter,blogs,news))
+  rm(twitter,blogs,news)
+  myCorpus<-gsub("[^A-Za-z0-9#' -]","",myCorpus)
+  myTokens<-tokens(myCorpus,remove_punct = TRUE,remove_symbols=TRUE,remove_url=TRUE)
+  rm(myCorpus)
+  myTokens<-tokens_tolower(myTokens)
+}
+```
+
+```{R}
+if(!file.exists("tokens.txt")){write(unlist(as.list(myTokens)),"tokens.txt")}
+```
+
+```{R}
+#4grams
+if(!file.exists("train4Tokens.csv")){
+  fourGramTokens<-tokens_ngrams(myTokens[1:400404], n = 4L,concatenator = ",")
+  fourGramTokens<-unlist(as.list(fourGramTokens))
+  write(fourGramTokens,"train4Tokens.csv",append=TRUE)
+  rm(fourGramTokens)
+  fourGramTokens<-tokens_ngrams(myTokens[400405:800809], n = 4L,concatenator = ",")
+  fourGramTokens<-unlist(as.list(fourGramTokens))
+  write(fourGramTokens,"train4Tokens.csv",append=TRUE)
+  rm(fourGramTokens)
+  fourGramTokens<-tokens_ngrams(myTokens[800810:1201214], n = 4L,concatenator = ",")
+  fourGramTokens<-unlist(as.list(fourGramTokens))
+  write(fourGramTokens,"train4Tokens.csv",append=TRUE)
+  rm(fourGramTokens)
+  fourGramTokens<-tokens_ngrams(myTokens[1201215:1601619], n = 4L,concatenator = ",")
+  fourGramTokens<-unlist(as.list(fourGramTokens))
+  write(fourGramTokens,"train4Tokens.csv",append=TRUE)
+  rm(fourGramTokens)
+  fourGramTokens<-tokens_ngrams(myTokens[1601619:2002020], n = 4L,concatenator = ",")
+  fourGramTokens<-unlist(as.list(fourGramTokens))
+  write(fourGramTokens,"train4Tokens.csv",append=TRUE)
+  rm(fourGramTokens)
+}
+``` 
+
+```{R}
+# 3grams
+if(!file.exists("train3Tokens.csv")){
+  trigramTokens<-tokens_ngrams(myTokens[1:400404], n = 3L,concatenator = ",")
+  trigramTokens<-unlist(as.list(trigramTokens))
+  write(trigramTokens,"train3Tokens.csv",append=TRUE)
+  rm(trigramTokens)
+  trigramTokens<-tokens_ngrams(myTokens[400405:800809], n = 3L,concatenator = ",")
+  trigramTokens<-unlist(as.list(trigramTokens))
+  write(trigramTokens,"train3Tokens.csv",append=TRUE)
+  rm(trigramTokens)
+  trigramTokens<-tokens_ngrams(myTokens[800810:1201214], n = 3L,concatenator = ",")
+  trigramTokens<-unlist(as.list(trigramTokens))
+  write(trigramTokens,"train3Tokens.csv",append=TRUE)
+  rm(trigramTokens)
+  trigramTokens<-tokens_ngrams(myTokens[1201215:1601619], n = 3L,concatenator = ",")
+  trigramTokens<-unlist(as.list(trigramTokens))
+  write(trigramTokens,"train3Tokens.csv",append=TRUE)
+  rm(trigramTokens)
+  trigramTokens<-tokens_ngrams(myTokens[1601619:2002020], n = 3L,concatenator = ",")
+  trigramTokens<-unlist(as.list(trigramTokens))
+  write(trigramTokens,"train3Tokens.csv",append=TRUE)
+  rm(trigramTokens)
+}
+``` 
+
+```{R}
+# 2grams
+if(!file.exists("train2Tokens.csv")){
+  bigramTokens<-tokens_ngrams(myTokens[1:400404], n = 2L,concatenator = ",")
+  bigramTokens<-unlist(as.list(bigramTokens))
+  write(bigramTokens,"train2Tokens.csv",append=TRUE)
+  rm(bigramTokens)
+  bigramTokens<-tokens_ngrams(myTokens[400405:800809], n = 2L,concatenator = ",")
+  bigramTokens<-unlist(as.list(bigramTokens))
+  write(bigramTokens,"train2Tokens.csv",append=TRUE)
+  rm(bigramTokens)
+  bigramTokens<-tokens_ngrams(myTokens[800810:1201214], n = 2L,concatenator = ",")
+  bigramTokens<-unlist(as.list(bigramTokens))
+  write(bigramTokens,"train2Tokens.csv",append=TRUE)
+  rm(bigramTokens)
+  bigramTokens<-tokens_ngrams(myTokens[1201215:1601619], n = 2L,concatenator = ",")
+  bigramTokens<-unlist(as.list(bigramTokens))
+  write(bigramTokens,"train2Tokens.csv",append=TRUE)
+  rm(bigramTokens)
+  bigramTokens<-tokens_ngrams(myTokens[1601619:2002020], n = 2L,concatenator = ",")
+  bigramTokens<-unlist(as.list(bigramTokens))
+  write(bigramTokens,"train2Tokens.csv",append=TRUE)
+  rm(bigramTokens)
+}
+``` 
+
+```{R}
+fourGramTable<-as.data.table(read.csv("train4Tokens.csv",header=FALSE,fill=TRUE,sep=","))
+fourGramTokenLength<-nrow(fourGramTable)
+```
+
+```{R}
+fourGramFreqTable<-fourGramTable[,.(frequency=.N),by=list(V1,V2,V3,V4)]
+fourGramTypeLength<-nrow(fourGramFreqTable)
+rm(fourGramTable)
+fourGramSingles<-fourGramFreqTable[frequency==1,.N]
+fourGramMultiples<-fourGramFreqTable[frequency>1]
+fourGramMultipleLength<-nrow(fourGramMultiples)
+```
+
+```{R}
+trigramTable<-as.data.table(read.csv("train3Tokens.csv",header=FALSE,sep=","))
+trigramTokenLength<-nrow(trigramTable)
+```
+
+```{R}
+trigramFreqTable<-trigramTable[,.(frequency=.N),by=list(V1,V2,V3)]
+trigramTypeLength<-nrow(trigramFreqTable)
+rm(trigramTable)
+trigramSingles<-trigramFreqTable[frequency==1,.N]
+trigramMultiples<-trigramFreqTable[frequency>1]
+trigramMultipleLength<-nrow(trigramMultiples)
+```
+
+```{R}
+bigramTable<-as.data.table(read.csv("train2Tokens.csv",header=FALSE,sep=","))
+bigramTokenLength<-nrow(bigramTable)
+```
+
+```{R}
+bigramFreqTable<-bigramTable[,.(frequency=.N),by=list(V1,V2)]
+bigramTypeLength<-nrow(bigramFreqTable)
+rm(bigramTable)
+bigramSingles<-bigramFreqTable[frequency==1,.N]
+bigramMultiples<-bigramFreqTable[frequency>1]
+bigramMultipleLength<-nrow(bigramMultiples)
+```
+
+```{R}
+unigrams<-readLines("tokens.txt")
+unigramTable<-data.table(unigrams)
+rm(unigrams)
+unigramTokenLength<-nrow(unigramTable)
+```
+
+```{R}
+unigramFreqTable<-unigramTable[,.(frequency=.N),keyby=unigrams]
+unigramTypeLength<-nrow(unigramFreqTable)
+rm(unigramTable)
+unigramA<-unigramFreqTable[order(unigrams)]
+unigramSingles<-unigramFreqTable[frequency==1,.N]
+unigramMultiples<-unigramFreqTable[frequency>1]
+unigramMultipleLength<-nrow(unigramMultiples)
+```
+
+The capstone project of creating an app to provide possible next words in a sentence is a rather common one in the field of natural language processing. While this task is most frequently done using other computer languages and programs as well as much more powerful computers than a basic laptop, a basic model can be written in R and implemented using a Shiny app. This report summarizes the data provided for the project, then provides a possible language model and idea for the app.
+
+# Data Summary
+
+There are three sets of text which make up the data for this project. They come from twitter feeds, news stories, and blogs. These three sets are somewhat different in their general properties, but when combined they make up a better overall language model. This section shows these general properties, including size and word frequencies.
+
+
+### Data Size
+
+The three corpora are quite different but have similar basic characteristics. The following table shows the size of each corpus, in terms of both lines and words, as well as the average number of words per line.
+
+|Corpus | Number of Lines | Number of Words | Average Words per Line|
+|:---|---:|---:|---:|
+|Twitter | `r twitterAllLength ` | `r twitterAllTokenCount ` | `r round(twitterAllTokenCount/twitterAllLength,2)`|
+|Blogs | `r blogsAllLength` | `r blogsAllTokenCount`|`r round(blogsAllTokenCount/blogsAllLength,2)` |
+|News |  `r newsAllLength`|`r newsAllTokenCount` | `r round(newsAllTokenCount/newsAllLength,2)`|
+
+### High Frequency Words
+
+The highest frequency words are, unsurprisingly, quite similar but in a slightly different order among the three. For instance, the twitter corpus's top ten most frequent words includes *I* and *you*, whereas the news corpus instead has *of* and *in*. 
+
+**Ten Most Frequent Words**
+
+```{R}
+mostFreqTokens<-data.table(twitter=twitterAllHighFreqTokens, blogs=blogsAllHighFreqTokens,news=newsAllHighFreqTokens)
+mostFreqTokens[1:10,c(1,3,5)]
+```
+
+These top words are so frequent that the 25 most frequent words make up more than a quarter of each corpus:
+
+- Twitter: `r round(sum(mostFreqTokens[,2])/twitterAllTokenCount*100,3)`%
+- Blogs: `r round(sum(mostFreqTokens[,4])/blogsAllTokenCount*100,3)`%
+- News: `r round(sum(mostFreqTokens[,6])/newsAllTokenCount*100,3)`%
+
+### Low Frequency Words
+
+The vast majority of words occur infrequently, and the distribution is clearly exponential, as seen in the following plots.
+
+```{R}
+hist(log(unigramFreqTable$frequency),main="Training Corpus Frequency Distribution",xlab="Log Frequencies",
+  ylab="Distribution",breaks=50)
+```
+
+There are so few extremely frequent words and so many infrequent words in the English language that many legitimate words do not appear in this data. There are also many words that do appear in the data that are not actually English words. This is especially true with the twitter data, in which it is rather common to use strings of letters to show emotion. There are, for instance, 206 distinct words in the training corpus that begin with "aaa":
+
+**Words Beginning With "aaa"**
+
+```{R}
+unigramA[97775:97980,1]
+```
+
+## N-grams
+
+The numbers of n-grams in the training corpus are as follows:
+
+||Unigrams|Bigrams|Trigrams|4-grams|
+|---|---:|---:|---:|---:|
+|Tokens|`r unigramTokenLength`|`r bigramTokenLength`|`r trigramTokenLength`|`r fourGramTokenLength`|
+|Types|`r unigramTypeLength`|`r bigramTypeLength`|`r trigramTypeLength`|`r fourGramTypeLength`|
+|Singletons|`r unigramSingles`|`r bigramSingles`|`r trigramSingles`|`r fourGramSingles`|
+
+As the "n" in the n-gram increases, the number of overall tokens decreases, but the number of distinct tokens, or types, increases as does the number of singletons. In other words, as words are added to a phrase, it is more likely that the overall phrase will be one that has not yet been written.
+
+# Language Model
+
+The language model I wish to implement is a backoff model. This means that the model begins with the highest n-gram for which there are sufficient data. If there are 4grams to support a choice for the next word, those will be used. If not, we see if there are sufficient trigram data, and if necessary we look at bigrams before perhaps settling on using unigrams for a last resort. My model will include lookup tables for the ngrams, pruning them to include only those for which sufficient data exist. This model will be based on those discussed in the fourth chapter of Jurafsky and Martin's "Speech and Language Processing".
+
+# Shiny App
+
+### Basic Model
+
+The app that I plan to create will have a user input box that allows for one to three words, and will use the phrase as the lookup for determining the next word. Up to three possible next words will then be displayed.
+
+### Potential Problems
+
+I have not yet created the lookup tables for the app, so I don't know how large they are. I might have a problem with loading and run times if the tables are too large, but if they are too small the model will be less accurate. 
+
+I also have not yet decided on the best way to deal with potential input words that do not exist in the training corpus. There are several possible solutions to this, but I will have to play around with the model to see which solution is best for the amount of data and time that I have to put into the project.
